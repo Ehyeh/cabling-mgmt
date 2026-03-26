@@ -911,8 +911,17 @@ class CablingApp {
 
   confirmDelete() {
     if (!this.recordToDelete) return;
-    this._deleteFromDb(this.recordToDelete);
-    this._saveData(); // Sync local cache
+    const id = this.recordToDelete;
+    
+    // Remove from local memory first
+    this.data = this.data.filter(d => d.id !== id);
+    
+    // Then call DB delete
+    this._deleteFromDb(id);
+    
+    // Save local cache (this.data is now filtered)
+    this._saveData();
+    
     this.closeDeleteModal();
     this._applyFilters();
     this._toast('Registro eliminado', 'info');
