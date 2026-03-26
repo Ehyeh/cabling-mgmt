@@ -101,12 +101,13 @@ class CablingApp {
           .select('*')
           .order('id', { ascending: false });
         
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
           this.data = data;
-          console.log('[DB] Datos cargados desde Supabase');
-          // Update local cache
+          console.log('[DB] Datos cargados desde Supabase (' + data.length + ' registros)');
           localStorage.setItem('dcm_cabling_data', JSON.stringify(this.data));
           return;
+        } else if (!error && data && data.length === 0) {
+          console.log('[DB] Supabase está vacío, intentando cargar desde LocalStorage');
         } else if (error) {
           console.error('[DB] Error cargando desde Supabase:', error.message);
         }
