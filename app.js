@@ -145,8 +145,9 @@ class CablingApp {
         if (error) throw error;
       }
     } catch (err) {
-      console.error('[DB] Error guardando en Supabase:', err.message);
-      this._toast('Error al sincronizar con la nube', 'error');
+      console.error('[DB] Error guardando en Supabase:', err);
+      const msg = err.message || (err.error ? err.error.message : 'Error desconocido');
+      this._toast('Error al sincronizar con la nube: ' + msg, 'error');
     }
   }
 
