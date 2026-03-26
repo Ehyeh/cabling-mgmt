@@ -17,7 +17,7 @@ class CablingApp {
     this.clientFilter = '';
     this.charts = {};
     this.recentEntries = [];
-    this.routeSortColumn = 'patchPanel';
+    this.routeSortColumn = 'patchpanel';
     this.routeSortAsc = true;
 
     // Supabase Client
@@ -29,7 +29,7 @@ class CablingApp {
     this.FIELDS = [
       { key: 'fecha', label: 'Fecha' },
       { key: 'cdno', label: 'Pedido/Proyecto' },
-      { key: 'patchPanel', label: 'Patch Panel' },
+      { key: 'patchpanel', label: 'Patch Panel' },
       { key: 'puerto', label: '# Puerto' },
       { key: 'cliente', label: 'Cliente' },
       { key: 'origen', label: 'Origen' },
@@ -42,7 +42,7 @@ class CablingApp {
     this.COLUMN_ALIASES = {
       fecha: ['fecha', 'date', 'fch'],
       cdno: ['cdno', '# cdno', '#cdno', 'conector', 'connector', 'cable', 'pedido', 'proyecto', 'proy'],
-      patchPanel: ['patch panel', 'ident. # patch panel', 'ident. #patch panel', 'patchpanel', 'panel', 'ident'],
+      patchpanel: ['patch panel', 'ident. # patch panel', 'ident. #patch panel', 'patchpanel', 'panel', 'ident'],
       puerto: ['puerto', '# puer', '#puer', '# puerto', '#puerto', 'port', 'puer'],
       cliente: ['cliente', 'client', 'customer'],
       origen: ['origen', 'origin', 'source', 'desde'],
@@ -195,7 +195,7 @@ class CablingApp {
       id: this._genId(),
       fecha: document.getElementById('inputFecha').value,
       cdno: document.getElementById('inputCdno').value.trim(),
-      patchPanel: document.getElementById('inputPatchPanel').value.trim(),
+      patchpanel: document.getElementById('inputPatchPanel').value.trim(),
       puerto: document.getElementById('inputPuerto').value,
       cliente: document.getElementById('inputCliente').value.trim().toUpperCase(),
       origen: document.getElementById('inputOrigen').value.trim(),
@@ -251,7 +251,7 @@ class CablingApp {
   _updateDataLists() {
     const unique = (key) => [...new Set(this.data.map(d => d[key]).filter(Boolean))].sort();
 
-    this._fillDatalist('listPatchPanel', unique('patchPanel'));
+    this._fillDatalist('listPatchPanel', unique('patchpanel'));
     this._fillDatalist('listCliente', unique('cliente'));
     this._fillDatalist('listOrigen', unique('origen'));
     this._fillDatalist('listDestino', unique('destino'));
@@ -645,7 +645,7 @@ class CablingApp {
     document.getElementById('kpiTotal').textContent = data.length;
     document.getElementById('kpiDayco').textContent = daycoCount;
     document.getElementById('kpiCarriers').textContent = carriers.size;
-    document.getElementById('kpiPatchPanels').textContent = new Set(data.map(d => d.patchPanel).filter(Boolean)).size;
+    document.getElementById('kpiPatchPanels').textContent = new Set(data.map(d => d.patchpanel).filter(Boolean)).size;
   }
 
   _updateBadge() {
@@ -828,7 +828,7 @@ class CablingApp {
     this.charts.destinos.update('none');
 
     // Patch Panels (bar)
-    const ppData = counts('patchPanel').slice(0, 12);
+    const ppData = counts('patchpanel').slice(0, 12);
     this.charts.patchPanels.data.labels = ppData.map(c => c[0]);
     this.charts.patchPanels.data.datasets[0].data = ppData.map(c => c[1]);
     this.charts.patchPanels.data.datasets[0].backgroundColor = this.CHART_COLORS.slice(0, ppData.length);
@@ -851,7 +851,7 @@ class CablingApp {
     document.getElementById('editId').value = id;
     document.getElementById('editFecha').value = record.fecha;
     document.getElementById('editCdno').value = record.cdno;
-    document.getElementById('editPatchPanel').value = record.patchPanel;
+    document.getElementById('editPatchPanel').value = record.patchpanel;
     document.getElementById('editPuerto').value = record.puerto;
     document.getElementById('editCliente').value = record.cliente;
     document.getElementById('editOrigen').value = record.origen;
@@ -877,7 +877,7 @@ class CablingApp {
       ...this.data[idx],
       fecha: document.getElementById('editFecha').value,
       cdno: document.getElementById('editCdno').value.trim(),
-      patchPanel: document.getElementById('editPatchPanel').value.trim(),
+      patchpanel: document.getElementById('editPatchPanel').value.trim(),
       puerto: document.getElementById('editPuerto').value,
       cliente: document.getElementById('editCliente').value.trim().toUpperCase(),
       origen: document.getElementById('editOrigen').value.trim(),
