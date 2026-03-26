@@ -197,7 +197,7 @@ class CablingApp {
       fecha: document.getElementById('inputFecha').value,
       cdno: document.getElementById('inputCdno').value.trim(),
       patchpanel: document.getElementById('inputPatchPanel').value.trim(),
-      puerto: document.getElementById('inputPuerto').value,
+      puerto: parseInt(document.getElementById('inputPuerto').value) || null,
       cliente: document.getElementById('inputCliente').value.trim().toUpperCase(),
       origen: document.getElementById('inputOrigen').value.trim(),
       destino: document.getElementById('inputDestino').value.trim(),
@@ -400,6 +400,7 @@ class CablingApp {
         const srcCol = this.columnMap[field.key];
         let val = srcCol ? String(row[srcCol] || '').trim() : '';
         if (field.key === 'cliente') val = val.toUpperCase();
+        if (field.key === 'puerto') val = parseInt(val) || null;
         if (field.key === 'fecha' && val) {
           // Try to parse date
           val = this._parseDate(val);
@@ -879,7 +880,7 @@ class CablingApp {
       fecha: document.getElementById('editFecha').value,
       cdno: document.getElementById('editCdno').value.trim(),
       patchpanel: document.getElementById('editPatchPanel').value.trim(),
-      puerto: document.getElementById('editPuerto').value,
+      puerto: parseInt(document.getElementById('editPuerto').value) || null,
       cliente: document.getElementById('editCliente').value.trim().toUpperCase(),
       origen: document.getElementById('editOrigen').value.trim(),
       destino: document.getElementById('editDestino').value.trim(),
