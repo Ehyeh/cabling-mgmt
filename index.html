@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Aplicación de gestión de cableado estructurado para data center - Carga rápida, visualización y filtrado">
+  <title>DCM — Data Center Cabling Management</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <!-- Papa Parse for CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <!-- SheetJS for Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.1/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+
+<div class="app-container">
+
+  <!-- ═══ HEADER ═══ -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="header-logo">🔌</div>
+      <div>
+        <div class="header-title">Data Center Cabling</div>
+        <div class="header-subtitle">Structured Cabling Management System</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <select id="globalClientFilter" class="btn btn-secondary" style="min-width:200px; padding-right:36px;">
+        <option value="">🏢 Todos los Clientes</option>
+      </select>
+      <button class="btn btn-success" onclick="app.exportCSV()" id="btnExport">
+        📥 Exportar CSV
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══ NAVIGATION ═══ -->
+  <nav class="nav-tabs" id="mainNav">
+    <button class="nav-tab active" data-tab="dashboard" id="tabDashboard">
+      📊 Dashboard
+    </button>
+    <button class="nav-tab" data-tab="data" id="tabData">
+      📋 Datos <span class="count-badge" id="dataCount">0</span>
+    </button>
+    <button class="nav-tab" data-tab="entry" id="tabEntry">
+      ➕ Carga Rápida
+    </button>
+    <button class="nav-tab" data-tab="import" id="tabImport">
+      📂 Importar
+    </button>
+  </nav>
+
+  <!-- ═════════════════════════════════════════════════════════════
+       TAB: DASHBOARD
+       ═════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel active" id="panelDashboard">
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon blue">🔗</div>
+        <div class="kpi-info">
+          <div class="kpi-value" id="kpiTotal">0</div>
+          <div class="kpi-label">Conexiones Totales</div>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon purple">🏢</div>
+        <div class="kpi-info">
+          <div class="kpi-value" id="kpiDayco">0</div>
+          <div class="kpi-label">Conexiones DAYCO</div>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon green">📡</div>
+        <div class="kpi-info">
+          <div class="kpi-value" id="kpiCarriers">0</div>
+          <div class="kpi-label">Carriers</div>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon orange">🔲</div>
+        <div class="kpi-info">
+          <div class="kpi-value" id="kpiPatchPanels">0</div>
+          <div class="kpi-label">Patch Panels</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-container">
+        <div class="chart-header">
+          <div class="chart-title">📡 Conexiones por Carrier</div>
+        </div>
+        <div class="chart-wrapper"><canvas id="chartDestinos"></canvas></div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-header">
+          <div class="chart-title">🔲 Conexiones por Patch Panel</div>
+        </div>
+        <div class="chart-wrapper"><canvas id="chartPatchPanels"></canvas></div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-header">
+          <div class="chart-title">📍 Conexiones por Origen</div>
+        </div>
+        <div class="chart-wrapper"><canvas id="chartOrigenes"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Route Summary Table -->
+    <div class="glass-card" id="routeSummaryCard">
+      <div class="card-title" style="justify-content:space-between;">
+        <span><span class="icon">🛤️</span> Resumen de Rutas de Cableado</span>
+        <span class="text-sm text-muted" id="routeSummaryCount"></span>
+      </div>
+      <div class="table-wrapper" style="max-height:420px; overflow-y:auto;">
+        <table class="data-table" id="routeSummaryTable">
+          <thead>
+            <tr>
+              <th style="width:50px;">#</th>
+              <th data-sort="patchPanel">Patch Panel <span class="sort-icon">↕</span></th>
+              <th data-sort="puerto">Puerto <span class="sort-icon">↕</span></th>
+              <th data-sort="cliente">Cliente <span class="sort-icon">↕</span></th>
+              <th data-sort="origen">Origen <span class="sort-icon">↕</span></th>
+              <th data-sort="destino">Destino <span class="sort-icon">↕</span></th>
+              <th style="min-width:350px;">Ruta</th>
+            </tr>
+          </thead>
+          <tbody id="routeSummaryBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="routeEmptyState" style="padding:30px 20px;">
+        <div class="empty-state-icon" style="font-size:2rem;">🛤️</div>
+        <div class="empty-state-title">Sin rutas para mostrar</div>
+        <div class="empty-state-text">Selecciona un cliente en el filtro global o importa datos para ver el resumen de rutas.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════════════════════════════════════════════════════════
+       TAB: DATA TABLE
+       ═════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="panelData">
+    <div class="table-toolbar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="tableSearch" placeholder="Buscar en todos los campos...">
+      </div>
+      <div class="table-actions">
+      </div>
+    </div>
+    <div class="glass-card" style="padding:0; overflow:hidden;">
+      <div class="table-wrapper" style="max-height:65vh; overflow-y:auto;">
+        <table class="data-table" id="dataTable">
+          <thead>
+            <tr>
+              <th data-sort="fecha">Fecha <span class="sort-icon">↕</span></th>
+              <th data-sort="cdno">Pedido/Proyecto <span class="sort-icon">↕</span></th>
+              <th data-sort="patchPanel">Patch Panel <span class="sort-icon">↕</span></th>
+              <th data-sort="puerto"># Puerto <span class="sort-icon">↕</span></th>
+              <th data-sort="cliente">Cliente <span class="sort-icon">↕</span></th>
+              <th data-sort="origen">Origen <span class="sort-icon">↕</span></th>
+              <th data-sort="destino">Destino <span class="sort-icon">↕</span></th>
+              <th data-sort="observaciones">Observaciones <span class="sort-icon">↕</span></th>
+              <th>Ruta</th>
+              <th style="width:70px;"></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="emptyState">
+        <div class="empty-state-icon">📭</div>
+        <div class="empty-state-title">No hay datos cargados</div>
+        <div class="empty-state-text">Importa un archivo CSV/Excel o usa la carga rápida para agregar registros.</div>
+      </div>
+    </div>
+    <div class="pagination" id="pagination">
+      <div class="pagination-info" id="paginationInfo">Mostrando 0 de 0 registros</div>
+      <div class="pagination-controls" id="paginationControls"></div>
+    </div>
+  </div>
+
+  <!-- ═════════════════════════════════════════════════════════════
+       TAB: QUICK ENTRY
+       ═════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="panelEntry">
+    <div class="glass-card">
+      <div class="card-title"><span class="icon">⚡</span> Carga Rápida de Conexión</div>
+      <form id="entryForm" autocomplete="off">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label" for="inputFecha">Fecha</label>
+            <input type="date" id="inputFecha" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputCdno">Pedido/Proyecto</label>
+            <input type="text" id="inputCdno" placeholder="Ej: 1mv r/ Fibdi 1 Sod">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputPatchPanel">Patch Panel</label>
+            <input type="text" id="inputPatchPanel" placeholder="Ej: V12MA22 PPA" list="listPatchPanel">
+            <datalist id="listPatchPanel"></datalist>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputPuerto"># Puerto</label>
+            <input type="number" id="inputPuerto" placeholder="Ej: 3" min="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputCliente">Cliente</label>
+            <input type="text" id="inputCliente" placeholder="Ej: BANCAMIGA" list="listCliente" required>
+            <datalist id="listCliente"></datalist>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputOrigen">Origen</label>
+            <input type="text" id="inputOrigen" placeholder="Ej: V12RA21" list="listOrigen">
+            <datalist id="listOrigen"></datalist>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inputDestino">Destino</label>
+            <input type="text" id="inputDestino" placeholder="Ej: GOLD DATA (CARRIER)" list="listDestino">
+            <datalist id="listDestino"></datalist>
+          </div>
+          <div class="form-group wide">
+            <label class="form-label" for="inputObservaciones">Observaciones</label>
+            <input type="text" id="inputObservaciones" placeholder="Observaciones sobre la conexión">
+          </div>
+          <div class="form-group full">
+            <label class="form-label" for="inputRuta">Ruta</label>
+            <textarea id="inputRuta" placeholder="Ruta detallada del cableado..." rows="2"></textarea>
+          </div>
+        </div>
+        <div class="flex gap-12 mt-16">
+          <button type="submit" class="btn btn-primary" id="btnAddEntry">
+            ✅ Agregar Conexión
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="app.clearForm()" id="btnClearForm">
+            🔄 Limpiar Formulario
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Recent entries preview -->
+    <div class="glass-card mt-16" id="recentEntriesCard">
+      <div class="card-title"><span class="icon">🕐</span> Últimos Registros Agregados</div>
+      <div class="table-wrapper" style="max-height:250px; overflow-y:auto;">
+        <table class="data-table" id="recentTable">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Patch Panel</th>
+              <th># Puerto</th>
+              <th>Cliente</th>
+              <th>Destino</th>
+            </tr>
+          </thead>
+          <tbody id="recentBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════════════════════════════════════════════════════════
+       TAB: IMPORT
+       ═════════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="panelImport">
+    <div class="glass-card">
+      <div class="card-title"><span class="icon">📂</span> Importar Datos desde Archivo</div>
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+        <div class="drop-zone-icon">📄</div>
+        <div class="drop-zone-text">Arrastra un archivo CSV o Excel aquí</div>
+        <div class="drop-zone-hint">o haz clic para seleccionar — Soporta .csv, .xlsx, .xls</div>
+      </div>
+    </div>
+
+    <!-- Import Preview -->
+    <div class="glass-card mt-16 hidden" id="importPreview">
+      <div class="card-title flex justify-between">
+        <span><span class="icon">👁️</span> Vista Previa de Importación</span>
+        <span class="text-sm text-muted" id="importCount"></span>
+      </div>
+
+      <div class="mb-16">
+        <div class="section-header">
+          <div class="section-title text-sm">Mapeo de Columnas</div>
+        </div>
+        <div class="form-grid" id="columnMapping" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));">
+          <!-- Dynamic column mapping selects -->
+        </div>
+      </div>
+
+      <div class="table-wrapper" style="max-height:350px; overflow-y:auto;">
+        <table class="data-table" id="previewTable">
+          <thead><tr id="previewHead"></tr></thead>
+          <tbody id="previewBody"></tbody>
+        </table>
+      </div>
+
+      <div class="flex gap-12 mt-16">
+        <button class="btn btn-primary" onclick="app.confirmImport()" id="btnConfirmImport">
+          ✅ Importar <span id="importBtnCount">0</span> Registros
+        </button>
+        <button class="btn btn-secondary" onclick="app.cancelImport()" id="btnCancelImport">
+          ❌ Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app-container -->
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">✏️ Editar Conexión</div>
+      <button class="btn btn-ghost" onclick="app.closeEditModal()" id="btnCloseModal">✕</button>
+    </div>
+    <form id="editForm">
+      <input type="hidden" id="editId">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Fecha</label>
+          <input type="date" id="editFecha">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Pedido/Proyecto</label>
+          <input type="text" id="editCdno">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Patch Panel</label>
+          <input type="text" id="editPatchPanel">
+        </div>
+        <div class="form-group">
+          <label class="form-label"># Puerto</label>
+          <input type="number" id="editPuerto">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cliente</label>
+          <input type="text" id="editCliente">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Origen</label>
+          <input type="text" id="editOrigen">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Destino</label>
+          <input type="text" id="editDestino">
+        </div>
+        <div class="form-group wide">
+          <label class="form-label">Observaciones</label>
+          <input type="text" id="editObservaciones">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Ruta</label>
+          <textarea id="editRuta" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="flex gap-12 mt-16">
+        <button type="submit" class="btn btn-primary" id="btnSaveEdit">💾 Guardar Cambios</button>
+        <button type="button" class="btn btn-secondary" onclick="app.closeEditModal()">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="max-width: 400px;">
+    <div class="modal-header">
+      <div class="modal-title">🗑️ Eliminar Conexión</div>
+      <button class="btn btn-ghost" onclick="app.closeDeleteModal()">✕</button>
+    </div>
+    <div style="padding: 10px 0;">
+      <p style="color: var(--text-muted); font-size: 0.95rem;">¿Está seguro de que desea eliminar este registro? Esta acción no se puede deshacer.</p>
+    </div>
+    <div class="flex gap-12 mt-16">
+      <button type="button" class="btn btn-danger" onclick="app.confirmDelete()">🗑️ Sí, Eliminar</button>
+      <button type="button" class="btn btn-secondary" onclick="app.closeDeleteModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+
+<script src="app.js?v=1.0.1"></script>
+</body>
+</html>
