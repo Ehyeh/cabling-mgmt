@@ -201,7 +201,6 @@ class CablingApp {
         const { data, error } = await this.supabase
           .from('cabling_data')
           .select('*')
-          .eq('user_id', this.session.user.id) // Filter by user
           .order('id', { ascending: false });
         
         if (!error && data && data.length > 0) {

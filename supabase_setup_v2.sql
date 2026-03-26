@@ -19,7 +19,8 @@ CREATE TABLE cabling_data (
 -- 2. Habilitar Seguridad (RLS)
 ALTER TABLE cabling_data ENABLE ROW LEVEL SECURITY;
 
--- 3. Crear Política de Privacidad (Cada usuario ve solo sus datos)
-CREATE POLICY "Users can only access their own data" 
+-- 3. Crear Política de Colaboración (Todos los usuarios logueados ven y editan todo)
+DROP POLICY IF EXISTS "Users can only access their own data" ON cabling_data;
+CREATE POLICY "Collaborative access for authenticated users" 
   ON cabling_data FOR ALL 
-  USING (auth.uid() = user_id);
+  USING (auth.role() = 'authenticated');
