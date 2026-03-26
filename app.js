@@ -22,6 +22,9 @@ class CablingApp {
 
     // Supabase Client
     this.supabase = null;
+    this.session = null;
+    this.authMode = 'login';
+
     if (typeof supabase !== 'undefined' && SUPABASE_CONFIG.url !== 'TU_SUPABASE_URL') {
       this.supabase = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
     }
@@ -62,10 +65,7 @@ class CablingApp {
 
   // ── Initialization ─────────────────────────────────────────
 
-  _init() {
-    this._loadData().then(() => {
-      this._applyFilters();
-    });
+  async _init() {
     this._setupTabs();
     this._setupForm();
     if (typeof Papa !== 'undefined' || typeof XLSX !== 'undefined') {
@@ -80,9 +80,111 @@ class CablingApp {
     } else {
       console.warn('Chart.js no está accesible. Las gráficas no se mostrarán.');
     }
-    this._updateDataLists();
-    this._applyFilters();
+
+    if (this.supabase) {
+      await this._initAuth();
+    } else {
+      await this._loadData();
+      this._updateDataLists();
+      this._applyFilters();
+    }
     this._setDefaultDate();
+  }
+
+  async _initAuth() {
+    // Check initial session
+    const { data: { session } } = await this.supabase.auth.getSession();
+    this._handleAuthState(session);
+
+    // Listen for changes
+    this.supabase.auth.onAuthStateChange((_event, session) => {
+      this._handleAuthState(session);
+    });
+
+    // Auth Form handlers
+    document.getElementById('authForm').onsubmit = (e) => this._onAuthSubmit(e);
+    document.getElementById('authToggleBtn').onclick = (e) => {
+      e.preventDefault();
+      this._toggleAuthMode();
+    };
+    document.getElementById('logoutBtn').onclick = () => this.supabase.auth.signOut();
+  }
+
+  _handleAuthState(session) {
+    this.session = session;
+    const authContainer = document.getElementById('authContainer');
+    const appContainer = document.getElementById('appContainer');
+
+    if (session) {
+      if (authContainer) authContainer.classList.add('hidden');
+      if (appContainer) appContainer.classList.remove('hidden');
+      document.getElementById('displayEmail').textContent = session.user.email;
+      document.getElementById('userAvatar').textContent = session.user.email[0].toUpperCase();
+      this._loadData().then(() => {
+        this._updateDataLists();
+        this._applyFilters();
+      });
+    } else {
+      if (authContainer) authContainer.classList.remove('hidden');
+      if (appContainer) appContainer.classList.add('hidden');
+      this.data = [];
+      this._updateDataLists();
+      this._applyFilters();
+    }
+  }
+
+  async _onAuthSubmit(e) {
+    e.preventDefault();
+    const email = document.getElementById('authEmail').value;
+    const password = document.getElementById('authPassword').value;
+    const btn = document.getElementById('authSubmitBtn');
+    
+    btn.disabled = true;
+    btn.textContent = this.authMode === 'login' ? 'Ingresando...' : 'Registrando...';
+
+    try {
+      let result;
+      if (this.authMode === 'login') {
+        result = await this.supabase.auth.signInWithPassword({ email, password });
+      } else {
+        result = await this.supabase.auth.signUp({ email, password });
+      }
+
+      if (result.error) throw result.error;
+      
+      if (this.authMode === 'signup') {
+        this._toast('Registro exitoso. Revisa tu correo o intenta ingresar.', 'success');
+        this._toggleAuthMode();
+      }
+    } catch (err) {
+      this._toast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = this.authMode === 'login' ? 'Ingresar' : 'Registrarse';
+    }
+  }
+
+  _toggleAuthMode() {
+    this.authMode = this.authMode === 'login' ? 'signup' : 'login';
+    const title = document.querySelector('.auth-title');
+    const subtitle = document.getElementById('authSubtitle');
+    const btn = document.getElementById('authSubmitBtn');
+    const toggleText = document.getElementById('authToggleText');
+    const toggleBtn = document.getElementById('authToggleBtn');
+
+    if (this.authMode === 'login') {
+      title.textContent = 'DCM Cloud';
+      subtitle.textContent = 'Inicia sesión para acceder a tus datos';
+      btn.textContent = 'Ingresar';
+      toggleText.textContent = '¿No tienes cuenta?';
+      toggleBtn.textContent = 'Regístrate gratis';
+    } else {
+      title.textContent = 'Nueva Cuenta';
+      subtitle.textContent = 'Crea tu perfil para guardar tus conexiones';
+      btn.textContent = 'Registrarse';
+      toggleText.textContent = '¿Ya tienes cuenta?';
+      toggleBtn.textContent = 'Inicia sesión';
+    }
   }
 
   _setDefaultDate() {
@@ -95,10 +197,11 @@ class CablingApp {
   async _loadData() {
     try {
       // 1. Try to load from Supabase if configured
-      if (this.supabase) {
+      if (this.supabase && this.session) {
         const { data, error } = await this.supabase
           .from('cabling_data')
           .select('*')
+          .eq('user_id', this.session.user.id) // Filter by user
           .order('id', { ascending: false });
         
         if (!error && data && data.length > 0) {
@@ -131,6 +234,7 @@ class CablingApp {
 
     const sanitize = (obj) => {
       const s = { ...obj };
+      if (this.session) s.user_id = this.session.user.id; // Inject user_id
       for (let k in s) if (s[k] === '') s[k] = null;
       return s;
     };
