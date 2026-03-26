@@ -250,6 +250,9 @@ class CablingApp {
         }
       }
       
+      // Remove DB-controlled fields to prevent out-of-range timestamp errors
+      delete s.created_at;
+      
       return s;
     };
 
