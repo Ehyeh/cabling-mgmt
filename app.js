@@ -128,20 +128,24 @@ class CablingApp {
 
     if (!this.supabase) return;
 
+    const sanitize = (obj) => {
+      const s = { ...obj };
+      for (let k in s) if (s[k] === '') s[k] = null;
+      return s;
+    };
+
     try {
       if (singleEntry) {
         // Upsert single entry
         const { error } = await this.supabase
           .from('cabling_data')
-          .upsert([singleEntry]);
+          .upsert([sanitize(singleEntry)]);
         if (error) throw error;
       } else {
-        // Full sync (caution: depends on table size)
-        // For a cabling app, we usually add one by one, 
-        // but bulk imports need special handling.
+        // Full sync
         const { error } = await this.supabase
           .from('cabling_data')
-          .upsert(this.data);
+          .upsert(this.data.map(sanitize));
         if (error) throw error;
       }
     } catch (err) {
