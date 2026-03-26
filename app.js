@@ -282,16 +282,12 @@ class CablingApp {
   async _deleteFromDb(id) {
     if (!this.supabase) return;
     try {
-      const { data, error } = await this.supabase
+      const { error } = await this.supabase
         .from('cabling_data')
         .delete()
-        .eq('id', id)
-        .select();
+        .eq('id', id);
         
       if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error("No se pudo eliminar en la nube. Verifica los permisos de Supabase (RLS).");
-      }
     } catch (err) {
       console.error('[DB] Error eliminando en Supabase:', err.message);
       this._toast('No se pudo borrar remotamente: ' + err.message, 'warning');
