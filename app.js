@@ -233,7 +233,10 @@ class CablingApp {
 
     const sanitize = (obj) => {
       const s = { ...obj };
-      if (this.session) s.user_id = this.session.user.id; // Inject user_id
+      // Inject user_id ONLY if it doesn't have one (preserve original creator)
+      if (this.session && !s.user_id) {
+        s.user_id = this.session.user.id;
+      }
       for (let k in s) if (s[k] === '') s[k] = null;
       
       // Fix potentially corrupt dates (e.g. "+046063-01-01")
@@ -1039,8 +1042,8 @@ class CablingApp {
     // Then call DB delete
     this._deleteFromDb(id);
     
-    // Save local cache (this.data is now filtered)
-    this._saveData();
+    // Save local cache ONLY (avoid full DB sync)
+    localStorage.setItem('dcm_cabling_data', JSON.stringify(this.data));
     
     this.closeDeleteModal();
     this._applyFilters();
