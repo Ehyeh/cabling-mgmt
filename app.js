@@ -236,6 +236,20 @@ class CablingApp {
       const s = { ...obj };
       if (this.session) s.user_id = this.session.user.id; // Inject user_id
       for (let k in s) if (s[k] === '') s[k] = null;
+      
+      // Fix potentially corrupt dates (e.g. "+046063-01-01")
+      if (s.fecha && typeof s.fecha === 'string') {
+        const parts = s.fecha.match(/(\d{4,6})-(\d{2})-(\d{2})/);
+        if (parts) {
+          let year = parseInt(parts[1], 10);
+          if (year > 2100) year = new Date().getFullYear();
+          if (year < 1900) year = 1900;
+          s.fecha = `${year}-${parts[2]}-${parts[3]}`;
+        } else {
+          s.fecha = null; // Invalid format
+        }
+      }
+      
       return s;
     };
 
