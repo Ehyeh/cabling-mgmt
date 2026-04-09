@@ -91,6 +91,7 @@ class CablingApp {
     this._setDefaultDate();
   }
 
+  async _initAuth() {
     this.isRecoveryMode = false;
     // Handle recovery flow first to set the flag if needed
     this._handleRecoveryFlow();
