@@ -108,6 +108,11 @@ class CablingApp {
       this._toggleAuthMode();
     };
     document.getElementById('logoutBtn').onclick = () => this.supabase.auth.signOut();
+
+    // Recovery handlers
+    document.getElementById('forgotPasswordBtn').onclick = () => this._toggleRecoveryMode(true);
+    document.getElementById('backToLoginBtn').onclick = () => this._toggleRecoveryMode(false);
+    document.getElementById('recoveryForm').onsubmit = (e) => this._onRecoverySubmit(e);
   }
 
   _handleAuthState(session) {
@@ -178,12 +183,61 @@ class CablingApp {
       btn.textContent = 'Ingresar';
       toggleText.textContent = '¿No tienes cuenta?';
       toggleBtn.textContent = 'Regístrate gratis';
+      document.querySelector('.auth-options').classList.remove('hidden');
     } else {
       title.textContent = 'Nueva Cuenta';
       subtitle.textContent = 'Crea tu perfil para guardar tus conexiones';
       btn.textContent = 'Registrarse';
       toggleText.textContent = '¿Ya tienes cuenta?';
       toggleBtn.textContent = 'Inicia sesión';
+      document.querySelector('.auth-options').classList.add('hidden');
+    }
+  }
+
+  _toggleRecoveryMode(show) {
+    const loginForm = document.getElementById('authForm');
+    const recoveryForm = document.getElementById('recoveryForm');
+    const footer = document.querySelector('.auth-footer');
+    const title = document.querySelector('.auth-title');
+    const subtitle = document.getElementById('authSubtitle');
+
+    if (show) {
+      loginForm.classList.add('hidden');
+      recoveryForm.classList.remove('hidden');
+      footer.classList.add('hidden');
+      title.textContent = 'Recuperar Clave';
+      subtitle.textContent = 'Se enviará un correo con instrucciones';
+    } else {
+      loginForm.classList.remove('hidden');
+      recoveryForm.classList.add('hidden');
+      footer.classList.remove('hidden');
+      title.textContent = this.authMode === 'login' ? 'DCM Cloud' : 'Nueva Cuenta';
+      subtitle.textContent = this.authMode === 'login' ? 'Inicia sesión para acceder a tus datos' : 'Crea tu perfil para guardar tus conexiones';
+    }
+  }
+
+  async _onRecoverySubmit(e) {
+    e.preventDefault();
+    const email = document.getElementById('recoveryEmail').value;
+    const btn = document.getElementById('recoverySubmitBtn');
+    
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    try {
+      const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+
+      if (error) throw error;
+      
+      this._toast('Correo de recuperación enviado. Revisa tu bandeja de entrada.', 'success');
+      this._toggleRecoveryMode(false);
+    } catch (err) {
+      this._toast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Enviar enlace de recuperación';
     }
   }
 

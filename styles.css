@@ -1099,6 +1099,33 @@ select option {
   opacity: 0.8;
 }
 
+.auth-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -10px 0 10px;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.remember-me input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.text-sm {
+  font-size: 0.82rem;
+}
+
+
 /* ── User Menu ──────────────────────────────────────────────── */
 .user-menu {
   display: flex;

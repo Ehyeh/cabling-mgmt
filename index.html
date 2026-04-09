@@ -36,8 +36,31 @@
           <label class="form-label">Contraseña</label>
           <input type="password" id="authPassword" placeholder="••••••••" required>
         </div>
+        
+        <div class="auth-options">
+          <label class="remember-me">
+            <input type="checkbox" id="authRemember" checked>
+            <span>Recordarme</span>
+          </label>
+          <a id="forgotPasswordBtn" class="auth-link text-sm">¿Olvidaste tu clave?</a>
+        </div>
+
         <button type="submit" id="authSubmitBtn" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
           Ingresar
+        </button>
+      </form>
+
+      <!-- Recovery Form (Initially Hidden) -->
+      <form id="recoveryForm" class="auth-form hidden">
+        <div class="form-group">
+          <label class="form-label">Correo Electrónico</label>
+          <input type="email" id="recoveryEmail" placeholder="usuario@empresa.com" required>
+        </div>
+        <button type="submit" id="recoverySubmitBtn" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
+          Enviar enlace de recuperación
+        </button>
+        <button type="button" id="backToLoginBtn" class="btn btn-ghost" style="width: 100%; margin-top: 8px;">
+          Volver al Login
         </button>
       </form>
 
