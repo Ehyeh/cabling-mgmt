@@ -91,7 +91,10 @@ class CablingApp {
     this._setDefaultDate();
   }
 
-  async _initAuth() {
+    this.isRecoveryMode = false;
+    // Handle recovery flow first to set the flag if needed
+    this._handleRecoveryFlow();
+
     // Check initial session
     try {
       const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
@@ -129,9 +132,6 @@ class CablingApp {
     });
     document.getElementById('recoveryForm').addEventListener('submit', (e) => this._onRecoverySubmit(e));
     document.getElementById('updatePasswordForm').addEventListener('submit', (e) => this._onUpdatePasswordSubmit(e));
-
-    // Handle recovery flow if token is in URL
-    this._handleRecoveryFlow();
   }
 
   _handleAuthState(session) {
@@ -139,7 +139,7 @@ class CablingApp {
     const authContainer = document.getElementById('authContainer');
     const appContainer = document.getElementById('appContainer');
 
-    if (session) {
+    if (session && !this.isRecoveryMode) {
       if (authContainer) authContainer.classList.add('hidden');
       if (appContainer) appContainer.classList.remove('hidden');
       document.getElementById('displayEmail').textContent = session.user.email;
@@ -148,7 +148,7 @@ class CablingApp {
         this._updateDataLists();
         this._applyFilters();
       });
-    } else {
+    } else if (!session) {
       if (authContainer) authContainer.classList.remove('hidden');
       if (appContainer) appContainer.classList.add('hidden');
       this.data = [];
@@ -275,6 +275,7 @@ class CablingApp {
     const hash = window.location.hash;
     if (hash && hash.includes('type=recovery')) {
       console.log('[AUTH] Detectado flujo de recuperación');
+      this.isRecoveryMode = true;
       this._toggleUpdatePasswordMode(true);
       // Remove hash from URL to prevent re-triggering (cleaner URL)
       history.replaceState(null, null, window.location.pathname + window.location.search);
