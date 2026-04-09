@@ -110,9 +110,16 @@ class CablingApp {
     document.getElementById('logoutBtn').onclick = () => this.supabase.auth.signOut();
 
     // Recovery handlers
-    document.getElementById('forgotPasswordBtn').onclick = () => this._toggleRecoveryMode(true);
-    document.getElementById('backToLoginBtn').onclick = () => this._toggleRecoveryMode(false);
-    document.getElementById('recoveryForm').onsubmit = (e) => this._onRecoverySubmit(e);
+    document.getElementById('forgotPasswordBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      this._toggleRecoveryMode(true);
+    });
+    document.getElementById('backToLoginBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      this._toggleRecoveryMode(false);
+    });
+    document.getElementById('recoveryForm').addEventListener('submit', (e) => this._onRecoverySubmit(e));
+
   }
 
   _handleAuthState(session) {
