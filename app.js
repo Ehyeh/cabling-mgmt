@@ -93,8 +93,17 @@ class CablingApp {
 
   async _initAuth() {
     // Check initial session
-    const { data: { session } } = await this.supabase.auth.getSession();
-    this._handleAuthState(session);
+    try {
+      const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      this._handleAuthState(session);
+    } catch (err) {
+      console.error('[CONN ERROR]', err);
+      if (err.message.includes('fetch') || err.name === 'TypeError') {
+        this._toast('Error de conexión con Supabase. Verifica tu internet o configuración.', 'warning');
+      }
+    }
+
 
     // Listen for changes
     this.supabase.auth.onAuthStateChange((_event, session) => {
@@ -119,7 +128,10 @@ class CablingApp {
       this._toggleRecoveryMode(false);
     });
     document.getElementById('recoveryForm').addEventListener('submit', (e) => this._onRecoverySubmit(e));
+    document.getElementById('updatePasswordForm').addEventListener('submit', (e) => this._onUpdatePasswordSubmit(e));
 
+    // Handle recovery flow if token is in URL
+    this._handleRecoveryFlow();
   }
 
   _handleAuthState(session) {
@@ -232,19 +244,98 @@ class CablingApp {
     btn.textContent = 'Enviando...';
 
     try {
+      if (!this.supabase) {
+        throw new Error('Supabase no está configurado correctamente.');
+      }
+
       const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin,
+        redirectTo: window.location.origin && window.location.origin !== 'null' ? window.location.origin : undefined,
       });
+
 
       if (error) throw error;
       
       this._toast('Correo de recuperación enviado. Revisa tu bandeja de entrada.', 'success');
       this._toggleRecoveryMode(false);
     } catch (err) {
-      this._toast(err.message, 'error');
+      console.error('[RECOVERY ERROR]', err);
+      const msg = err.message.includes('fetch') || err.name === 'TypeError' 
+        ? 'Error de red: No se pudo conectar con Supabase. Verifica tu conexión.' 
+        : err.message;
+      this._toast(msg, 'error');
+
     } finally {
       btn.disabled = false;
       btn.textContent = 'Enviar enlace de recuperación';
+    }
+  }
+
+  _handleRecoveryFlow() {
+    // Supabase appends #type=recovery etc to the URL
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      console.log('[AUTH] Detectado flujo de recuperación');
+      this._toggleUpdatePasswordMode(true);
+      // Remove hash from URL to prevent re-triggering (cleaner URL)
+      history.replaceState(null, null, window.location.pathname + window.location.search);
+    }
+  }
+
+  _toggleUpdatePasswordMode(show) {
+    const loginForm = document.getElementById('authForm');
+    const recoveryForm = document.getElementById('recoveryForm');
+    const updateForm = document.getElementById('updatePasswordForm');
+    const footer = document.querySelector('.auth-footer');
+    const title = document.querySelector('.auth-title');
+    const subtitle = document.getElementById('authSubtitle');
+
+    if (show) {
+      loginForm.classList.add('hidden');
+      recoveryForm.classList.add('hidden');
+      updateForm.classList.remove('hidden');
+      footer.classList.add('hidden');
+      title.textContent = 'Nueva Contraseña';
+      subtitle.textContent = 'Ingresa tu nueva clave de acceso';
+    } else {
+      updateForm.classList.add('hidden');
+      this._toggleRecoveryMode(false);
+    }
+  }
+
+  async _onUpdatePasswordSubmit(e) {
+    e.preventDefault();
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    const btn = document.getElementById('updatePasswordBtn');
+
+    if (newPassword !== confirmPassword) {
+      this._toast('Las contraseñas no coinciden', 'warning');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      this._toast('La contraseña debe tener al menos 6 caracteres', 'warning');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+
+    try {
+      const { error } = await this.supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+
+      this._toast('Contraseña actualizada con éxito. Ya puedes ingresar.', 'success');
+      this._toggleUpdatePasswordMode(false);
+      // Reset forms
+      document.getElementById('updatePasswordForm').reset();
+      document.getElementById('authPassword').value = '';
+    } catch (err) {
+      console.error('[UPDATE ERROR]', err);
+      this._toast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '💾 Guardar nueva contraseña';
     }
   }
 
